@@ -47,7 +47,7 @@ the baseline.
 |---|---|---|
 | `config` | `tiltmeter.yaml` | Path to the config file, relative to the workspace. |
 | `endpoints` | all | Endpoint ids to check, separated by spaces or new lines. |
-| `version` | `0.3.0` | Tiltmeter version from PyPI. |
+| `version` | `0.4.0` | Tiltmeter version from PyPI. |
 | `fail-on` | `warning` | `warning` fails on warning or breaking drift and on checks that could not run. `breaking` fails only on breaking drift. `never` only reports. A broken config always fails. |
 | `explain` | `true` | Ask Claude to explain drift. Needs `ANTHROPIC_API_KEY`; without it the check runs without explanations. |
 | `notify` | `true` | Send the Slack and webhook notifications declared in the config. |
