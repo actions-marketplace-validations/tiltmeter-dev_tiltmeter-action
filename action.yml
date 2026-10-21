@@ -14,7 +14,7 @@ inputs:
     default: ""
   version:
     description: Tiltmeter version to run from PyPI. Pin it so a new release never changes your CI without a review.
-    default: "0.1.0"
+    default: "0.2.0"
   fail-on:
     description: >-
       When to fail the step. "warning" fails on warning or breaking drift and on checks that
