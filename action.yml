@@ -75,6 +75,7 @@ runs:
       id: check
       shell: bash
       env:
+        PYTHONUTF8: "1"
         CONFIG: ${{ inputs.config }}
         ENDPOINTS: ${{ inputs.endpoints }}
         VERSION: ${{ inputs.version }}

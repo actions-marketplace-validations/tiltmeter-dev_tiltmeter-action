@@ -71,7 +71,9 @@ def summary(results_path: str, code: str, summary_path: str) -> None:
             md.append(
                 f"| `{_cell(r['endpoint_id'])}` | {status} | {_cell(label)} | {len(r['changes'])} |"
             )
-            log.append(f"  {r['endpoint_id']}: {label}, {len(r['changes'])} changes")
+            log.append(
+                f"  {r['endpoint_id']}: {severity or outcome}, {len(r['changes'])} changes"
+            )
 
         for r in results:
             if not r["changes"] and not r.get("error"):
