@@ -1,0 +1,132 @@
+name: Tiltmeter API drift check
+description: Detect breaking changes in the third-party APIs your code and AI agents depend on.
+author: Agustin Torres
+branding:
+  icon: activity
+  color: orange
+
+inputs:
+  config:
+    description: Path to tiltmeter.yaml, relative to the workspace.
+    default: tiltmeter.yaml
+  endpoints:
+    description: Only check these endpoint ids, separated by spaces or new lines. Empty checks all of them.
+    default: ""
+  version:
+    description: Tiltmeter version to run from PyPI. Pin it so a new release never changes your CI without a review.
+    default: "0.1.0"
+  fail-on:
+    description: >-
+      When to fail the step. "warning" fails on warning or breaking drift and on checks that
+      could not run; "breaking" fails only on breaking drift; "never" only reports.
+      A broken configuration always fails.
+    default: warning
+  explain:
+    description: Ask Claude to explain drift. Needs ANTHROPIC_API_KEY in the step's env.
+    default: "true"
+  notify:
+    description: Send the Slack and webhook notifications declared in the config.
+    default: "true"
+  cache:
+    description: Keep the baseline in the Actions cache between runs. Without it every run records a fresh baseline and never reports drift.
+    default: "true"
+  cache-key:
+    description: Prefix for the cache key. Change it when one repository runs several independent configs.
+    default: tiltmeter
+  summary:
+    description: Write the results to the job summary.
+    default: "true"
+
+outputs:
+  exit-code:
+    description: "Tiltmeter's exit code: 0 clean, 1 warning, 2 breaking, 3 a check failed, 4 configuration error."
+    value: ${{ steps.check.outputs.exit-code }}
+  result:
+    description: "One word for the run: clean, warning, breaking, failed or error."
+    value: ${{ steps.check.outputs.result }}
+  json:
+    description: Path to the JSON results, one check result per endpoint.
+    value: ${{ steps.check.outputs.json }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+    - name: Locate the baseline
+      id: state
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.config }}
+        VERSION: ${{ inputs.version }}
+      run: |
+        uvx --quiet --from "tiltmeter==$VERSION" python "$GITHUB_ACTION_PATH/action.py" state-dir "$CONFIG" >> "$GITHUB_OUTPUT"
+
+    - name: Restore the baseline
+      if: inputs.cache == 'true'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.state.outputs.dir }}
+        key: ${{ inputs.cache-key }}-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: ${{ inputs.cache-key }}-${{ github.job }}-
+
+    - name: Check APIs
+      id: check
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.config }}
+        ENDPOINTS: ${{ inputs.endpoints }}
+        VERSION: ${{ inputs.version }}
+        EXPLAIN: ${{ inputs.explain }}
+        NOTIFY: ${{ inputs.notify }}
+        SUMMARY: ${{ inputs.summary }}
+      run: |
+        args=(check --json --config "$CONFIG")
+        for id in $ENDPOINTS; do args+=(--endpoint "$id"); done
+        [ "$EXPLAIN" = "true" ] || args+=(--no-llm)
+        [ "$NOTIFY" = "true" ] || args+=(--no-notify)
+
+        json="$RUNNER_TEMP/tiltmeter-results.json"
+        code=0
+        uvx --quiet --from "tiltmeter==$VERSION" tiltmeter "${args[@]}" > "$json" || code=$?
+
+        case "$code" in
+          0) result=clean ;;
+          1) result=warning ;;
+          2) result=breaking ;;
+          3) result=failed ;;
+          *) result=error ;;
+        esac
+        {
+          echo "exit-code=$code"
+          echo "result=$result"
+          echo "json=$json"
+        } >> "$GITHUB_OUTPUT"
+
+        summary_file=""
+        [ "$SUMMARY" = "true" ] && summary_file="$GITHUB_STEP_SUMMARY"
+        uvx --quiet --from "tiltmeter==$VERSION" python "$GITHUB_ACTION_PATH/action.py" summary "$json" "$code" "$summary_file"
+
+    - name: Save the baseline
+      if: always() && inputs.cache == 'true' && steps.check.outputs.exit-code != '4'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.state.outputs.dir }}
+        key: ${{ inputs.cache-key }}-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+    - name: Apply fail-on
+      shell: bash
+      env:
+        CODE: ${{ steps.check.outputs.exit-code }}
+        FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        case "$FAIL_ON" in
+          warning)  fail="1 2 3 4" ;;
+          breaking) fail="2 4" ;;
+          never)    fail="4" ;;
+          *) echo "::error::fail-on must be warning, breaking or never, got '$FAIL_ON'"; exit 4 ;;
+        esac
+        for c in $fail; do
+          if [ "$CODE" = "$c" ]; then exit "$CODE"; fi
+        done
