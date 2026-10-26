@@ -22,7 +22,7 @@ inputs:
     default: ""
   version:
     description: Tiltmeter version to run from PyPI. Pin it so a new release never changes your CI without a review.
-    default: "0.5.0"
+    default: "0.6.0"
   source:
     description: >-
       Install Tiltmeter from here instead of PyPI, such as
