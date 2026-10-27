@@ -165,7 +165,7 @@ jobs:
 | `mode` | `check` | `check` checks the endpoints for drift. `notices` applies the change notices and specs the config subscribes to. For providers, `notice-draft` comments a draft notice on pull requests that change the spec, and `notice-publish` signs `notices-dir` into the feed in `site-dir`. |
 | `config` | `tiltmeter.yaml` | Path to the config file, relative to the workspace. |
 | `endpoints` | all | Endpoint ids to check, separated by spaces or new lines. |
-| `version` | `0.7.1` | Tiltmeter version from PyPI. |
+| `version` | `0.7.2` | Tiltmeter version from PyPI. |
 | `source` | none | Run Tiltmeter from here instead of PyPI, such as `git+https://github.com/tiltmeter-dev/tiltmeter@main`. Overrides `version`. |
 | `fail-on` | `warning` | `warning` fails on warning or breaking drift and on checks that could not run. `breaking` fails only on breaking drift. `never` only reports. A broken config always fails. |
 | `explain` | `true` | Ask Claude to explain drift. Needs `ANTHROPIC_API_KEY`; without it the check runs without explanations. |
